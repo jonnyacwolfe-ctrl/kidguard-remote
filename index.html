@@ -59,6 +59,7 @@ pre{white-space:pre-wrap;font-size:12px;margin:0;max-height:360px;overflow:auto}
     <div class="row"><button class="sec" id="blkAll">Show the full list</button><button class="sec" id="blkClear">Clear the list</button></div></div>
   <div class="card"><h2>Websites</h2><div id="web" class="mu"></div>
     <div class="row"><button data-op="unlock" data-a='{"seconds":1800}' data-done="All websites free for 30 min">Free 30 min</button><button data-op="unlock" data-a='{"seconds":3600}' data-done="All websites free for 1 hour">Free 1 hour</button><button data-op="unlock" data-a='{"seconds":7200}' data-done="All websites free for 2 hours">Free 2 h</button></div>
+    <div class="row"><button class="sec" id="mode">Change mode</button></div>
     <div class="row"><button class="sec" data-op="relock" data-done="Websites back to the rules">End free time</button><button class="sec" id="net">Internet OFF</button></div>
     <div id="yt" class="mu" style="margin-top:10px"></div>
     <div class="row"><button class="sec" data-op="resetYoutube" data-c="Reset today's YouTube time?" data-done="YouTube time reset">Reset YouTube time</button></div>
@@ -156,6 +157,7 @@ function render(){
   if(!showAll)$('blk').innerHTML=blk.length?blk.map(blkRow).join(''):'<div class="mu">Nothing blocked.</div>';
   $('web').innerHTML='Mode: '+(s.net?'<span class="warn">INTERNET OFF</span>':(s.only?'approved sites only':'block list'))+(s.free?` - <b>all websites free until ${esc(s.free)}</b>`:'');
   $('net').textContent=s.net?'Internet back ON':'Internet OFF';
+  $('mode').textContent=s.only?'Switch to: every site except the blocked list':'Switch to: only approved sites';
   $('yt').textContent=`YouTube: ${fmt(s.yt)} of ${s.ytMin} m`+(s.ytOff?' - closed for today':'');
   $('pz').innerHTML=s.paused?'<span class="warn">ALL RULES ARE PAUSED</span>':'Rules are on.';
   $('pause').textContent=s.paused?'Resume all rules':'Pause all rules';
@@ -231,6 +233,7 @@ document.addEventListener('click',e=>{
   if(b.id==='blkAll'){if(showAll){showAll=false;$('blkAll').textContent='Show the full list';if(st)render()}else loadAllBlocked();return}
   if(b.id==='blkClear'){if(confirm('Clear the blocked list? Nothing gets approved; items reappear if blocked again.'))act('clearBlocked',{},'List cleared').then(()=>{if(showAll)loadAllBlocked()});return}
   if(b.id==='cfgLoad'){loadCfg();return}
+  if(b.id==='mode'){const v=!(st&&st.only);if(confirm(v?'Only approved websites will open. Switch?':'Every website will open except the always-blocked list. Switch?'))ask('set',{key:'webApprovedOnly',value:v}).then(()=>{toast(v?'Only approved sites now':'Every site except the blocked list now');refresh(true);if(CFG)loadCfg()}).catch(x=>toast(x.message));return}
   if(b.id==='logLoad'){ask('log').then(r=>{$('log').textContent=[].concat(r.data.log||[]).slice().reverse().map(l=>String(l).replace(/^(\d{4}-\d\d-\d\d)T(\d\d:\d\d):\d\d,/,'$1 $2  ').replace(/,/,'  ')).join('\n')}).catch(x=>toast(x.message));return}
   if(b.dataset.tg){const k=b.dataset.tg,v=!CFG.set[k],l=(TOG.find(t=>t[0]===k)||[])[1];if(confirm(`${l}: switch ${v?'ON':'OFF'}?`))change('set',{key:k,value:v},`${l}: ${v?'ON':'OFF'}`);return}
   if(b.dataset.save){const k=b.dataset.save,v=parseFloat($('n_'+k).value);if(isNaN(v)||v<0){toast('Type a number');return}change('set',{key:k,value:v},'Saved');return}
