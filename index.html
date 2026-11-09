@@ -34,6 +34,13 @@ input{width:100%;font:18px ui-monospace,Consolas,monospace;padding:12px;border-r
   <button id="connect">Connect</button>
   <p class="mu" id="setupMsg"></p>
 </section>
+<section id="lock" class="card" hidden>
+  <h1>KidGuard</h1>
+  <p id="lockMsg">Enter your PIN.</p>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN">
+  <button id="pinGo">Unlock</button>
+  <p class="mu" id="pinErr"></p>
+</section>
 <section id="app" hidden>
   <div class="card">
     <div class="big" id="scr">Connecting to the Surface...</div>
@@ -134,7 +141,7 @@ function render(){
   const blk=[].concat(s.blk||[]);
   const fresh=blk.filter(b=>b.a<120).length;
   $('bh').textContent='Blocked'+(fresh?` (${fresh} now)`:'');
-  $('blk').innerHTML=blk.length?blk.map(b=>`<div class="bl${b.a<120?' new':''}"><div class="t"><div class="n">${esc(b.l)}<span class="pill">${b.k==='site'?'website':'app'}</span></div><div class="mu">${esc(b.w)} - ${ago(b.a)}</div></div><button data-id="${esc(b.id)}" data-l="${esc(b.l)}">Approve</button></div>`).join(''):'<div class="mu">Nothing blocked.</div>';
+  $('blk').innerHTML=blk.length?blk.map(blkRow).join(''):'<div class="mu">Nothing blocked.</div>';
   $('web').innerHTML='Mode: '+(s.net?'<span class="warn">INTERNET OFF</span>':(s.only?'approved sites only':'block list'))+(s.free?` - <b>all websites free until ${esc(s.free)}</b>`:'');
   $('net').textContent=s.net?'Internet back ON':'Internet OFF';
   $('yt').textContent=`YouTube: ${fmt(s.yt)} of ${s.ytMin} m`+(s.ytOff?' - closed for today':'');
@@ -143,6 +150,39 @@ function render(){
   const use=[].concat(s.use||[]);
   $('use').innerHTML=use.length?use.map(u=>`<tr><td>${esc(u.n)}</td><td>${fmt(u.s)}</td></tr>`).join(''):'<tr><td class="mu">No use yet today.</td></tr>';
   $('foot').textContent='Surface time '+s.at;
+}
+// what the cryptic Windows names are. bg = a Windows background helper (harmless to leave blocked); tool = can never be approved
+const APPS={
+ 'microsoft.windowscommunicationsapps':['Windows Mail & Calendar (background sync)','bg'],'hxtsr':['Windows Mail & Calendar (background sync)','bg'],'hxoutlook':['Windows Mail & Calendar','bg'],
+ 'microsoft.windowsstore':['Microsoft Store (helper). Approving it opens the whole Store','bg'],'storedesktopextension':['Microsoft Store (helper)','bg'],'winstore.app':['Microsoft Store',''],
+ 'microsoft.desktopappinstaller':['Windows App Installer (installs programs). Approving it lets her install apps','bg'],'windowspackagemanagerserver':['Windows App Installer (winget)','bg'],
+ 'microsoft.yourphone':['Phone Link (connects a phone to the Surface)','bg'],'phoneexperiencehost':['Phone Link (connects a phone to the Surface)','bg'],'crossdeviceresume':['Phone Link / continue from phone','bg'],
+ 'microsoft.xboxgamingoverlay':['Xbox Game Bar',''],'gamebar':['Xbox Game Bar',''],'gamebarftserver':['Xbox Game Bar (helper)','bg'],'microsoft.gamingapp':['Xbox app (games)',''],'xboxpcapp':['Xbox app (games)',''],
+ 'microsoft.microsoftsolitairecollection':['Microsoft Solitaire (game)',''],'microsoft.bingweather':['Weather',''],'microsoft.bingnews':['Microsoft News',''],'microsoft.getstarted':['Windows Tips','bg'],
+ 'microsoft.windowsmaps':['Maps',''],'microsoft.people':['People (contacts)','bg'],'microsoft.windowsfeedbackhub':['Windows Feedback Hub','bg'],'microsoft.windowsalarms':['Clock & alarms',''],
+ 'microsoft.gethelp':['Windows Get Help','bg'],'microsoft.powerautomatedesktop':['Power Automate',''],'microsoft.devhome':['Dev Home (programmer tools)',''],'microsoft.windowsterminal':['Windows Terminal (command window)','tool'],
+ 'microsoft.skypeapp':['Skype (video calls)',''],'skype':['Skype (video calls)',''],'msteams':['Microsoft Teams',''],'ms-teams':['Microsoft Teams',''],'teams':['Microsoft Teams',''],
+ 'microsoft.surfaceapp':['Surface app (pen and device settings)',''],'microsoft.mspaint':['Paint 3D',''],'microsoft.microsoft3dviewer':['3D Viewer',''],'mspcmanager':['Microsoft PC Manager','bg'],
+ 'spotifyab.spotifymusic':['Spotify (music)',''],'spotify':['Spotify (music)',''],'4df9e0f8.netflix':['Netflix',''],'disney.37853fc22b2ce':['Disney+',''],'amazonvideo.primevideo':['Prime Video',''],
+ 'telegram':['Telegram (chat)',''],'telegramdesktop':['Telegram (chat)',''],'signal':['Signal (chat)',''],'zoom':['Zoom (video calls)',''],'discord':['Discord (gamer chat)',''],
+ 'roblox':['Roblox (game)',''],'robloxplayerbeta':['Roblox (game)',''],'minecraft':['Minecraft (game)',''],'minecraftlauncher':['Minecraft (game)',''],'steam':['Steam (games)',''],'epicgameslauncher':['Epic Games (Fortnite etc.)',''],
+ 'cmd':['Command window','tool'],'powershell':['PowerShell (command window)','tool'],'pwsh':['PowerShell (command window)','tool'],'wscript':['Windows script runner','tool'],'cscript':['Windows script runner','tool'],
+ 'regedit':['Registry editor','tool'],'taskmgr':['Task Manager','tool'],'mmc':['Windows admin console','tool'],'msiexec':['Windows installer','tool'],'control':['Control Panel','tool'],'mstsc':['Remote Desktop','tool'],
+ 'quickassist':['Quick Assist (lets someone take over the Surface)','tool'],'mshta':['Windows script runner','tool'],'msconfig':['System configuration','tool'],
+ 'kgtest_unapproved':['KidGuard test program (from my tests - ignore)','bg']
+};
+function blkRow(b){
+  const key=String(b.id||'').replace(/^(app|site):/,''), cls='bl'+(b.a<120?' new':'');
+  if(b.k==='site'){
+    const host=key.replace(/[^a-z0-9.-]/gi,'');
+    return `<div class="${cls}"><div class="t"><div class="n"><a href="https://${esc(host)}" target="_blank" rel="noopener noreferrer">${esc(host)}</a><span class="pill">website</span></div><div class="mu">${esc(b.w)} - ${ago(b.a)} - tap the name to see the site</div></div><button data-id="${esc(b.id)}" data-l="${esc(host)}">Approve</button></div>`;
+  }
+  const f=APPS[key]||APPS[String(b.l).toLowerCase()];
+  const name=f?f[0]:b.l, kind=f?f[1]:'';
+  const note=kind==='tool'||b.w==='tool'?'Blocked on purpose - a system tool that cannot be approved':kind==='bg'?'A Windows background part - fine to leave blocked':esc(b.w);
+  const look=f?'':` - <a href="https://www.google.com/search?q=${encodeURIComponent('"'+b.l+'.exe" what is it')}" target="_blank" rel="noopener noreferrer">what is this?</a>`;
+  const btn=(kind==='tool'||b.w==='tool')?'':`<button data-id="${esc(b.id)}" data-l="${esc(name)}">Approve</button>`;
+  return `<div class="${cls}"><div class="t"><div class="n">${esc(name)}<span class="pill">app</span></div><div class="mu">${note} - ${ago(b.a)}${f?'':' ('+esc(b.l)+')'}${look}</div></div>${btn}</div>`;
 }
 function ago(a){if(a<90)return 'just now';if(a<3600)return Math.round(a/60)+' min ago';if(a<86400)return Math.round(a/3600)+' h ago';return 'earlier'}
 
@@ -153,22 +193,55 @@ document.addEventListener('click',e=>{
   if(b.id==='pause'){const on=!(st&&st.paused);if(!on||confirm('Switch OFF every rule until you resume?'))act('pause',{on},on?'All rules paused':'Rules back on');return}
   if(b.dataset.op){if(b.dataset.c&&!confirm(b.dataset.c))return;act(b.dataset.op,b.dataset.a?JSON.parse(b.dataset.a):{},b.dataset.done)}
 });
-$('forget').addEventListener('click',e=>{e.preventDefault();if(confirm('Disconnect this phone? You will need the setup code again.')){try{localStorage.removeItem('kg_s')}catch(_){}location.reload()}});
-$('connect').addEventListener('click',()=>{const s=clean($('code').value);if(!s){$('setupMsg').textContent='That code is not right: it has 26 letters and digits.';return}start(s)});
+// ---- PIN: the key is kept on this phone only encrypted with your PIN; 5 wrong PINs erase it (the setup code is then needed again)
+const LS={get:k=>{try{return localStorage.getItem(k)}catch(_){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}},del:k=>{try{localStorage.removeItem(k)}catch(_){}}};
+let newS='', hiddenAt=0;
+async function pinKey(pin,salt){const base=await crypto.subtle.importKey('raw',te.encode(pin),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:310000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+function show(id){for(const s of ['setup','lock','app'])$(s).hidden=s!==id}
+function askPin(setNew){newS=setNew||'';$('pin').value='';$('pinErr').textContent='';$('lockMsg').textContent=setNew?'Choose a PIN (4 to 8 digits) for this phone. You will type it each time you open KidGuard.':'Enter your PIN.';$('pinGo').textContent=setNew?'Save PIN':'Unlock';show('lock');setTimeout(()=>$('pin').focus(),100)}
+$('pinGo').addEventListener('click',async()=>{
+  const pin=$('pin').value.trim();
+  if(!/^\d{4,8}$/.test(pin)){$('pinErr').textContent='Use 4 to 8 digits.';return}
+  $('pinGo').disabled=true;
+  try{
+    if(newS){
+      const salt=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
+      const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},await pinKey(pin,salt),te.encode(newS));
+      LS.set('kg_v',JSON.stringify({s:b64(salt),i:b64(iv),c:b64(ct)}));LS.del('kg_s');LS.del('kg_bad');
+      await start(newS);newS='';
+    }else{
+      const v=JSON.parse(LS.get('kg_v')||'null');
+      try{const S=td.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(v.i)},await pinKey(pin,ub64(v.s)),ub64(v.c)));LS.del('kg_bad');await start(S)}
+      catch(_){const bad=(+LS.get('kg_bad')||0)+1;LS.set('kg_bad',bad);
+        if(bad>=5){LS.del('kg_v');LS.del('kg_bad');show('setup');$('setupMsg').textContent='5 wrong PINs: this phone was disconnected. Type the setup code from the Surface again.'}
+        else $('pinErr').textContent=`Wrong PIN. ${5-bad} tries left before this phone is disconnected.`}
+    }
+  }finally{$('pinGo').disabled=false}
+});
+$('pin').addEventListener('keydown',e=>{if(e.key==='Enter')$('pinGo').click()});
+$('forget').addEventListener('click',e=>{e.preventDefault();if(confirm('Disconnect this phone? You will need the setup code again.')){LS.del('kg_v');LS.del('kg_s');location.reload()}});
+$('connect').addEventListener('click',()=>{const s=clean($('code').value);if(!s){$('setupMsg').textContent='That code is not right: it has 26 letters and digits.';return}askPin(s)});
 
 async function start(S){
-  try{localStorage.setItem('kg_s',S)}catch(_){}
-  await init(S); $('setup').hidden=true; $('app').hidden=false; listen();
+  await init(S); show('app'); listen();
   setTimeout(()=>refresh(false),700);
   clearInterval(pollT); pollT=setInterval(()=>{if(!document.hidden)refresh(true)},30000);
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&K){listen();setTimeout(()=>refresh(true),500)}});
+// away for more than 2 minutes = locked again
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){hiddenAt=Date.now();return}
+  if(K&&hiddenAt&&Date.now()-hiddenAt>120000){location.reload();return}
+  if(K){listen();setTimeout(()=>refresh(true),500)}
+});
 (function(){
-  if(!window.crypto||!crypto.subtle){$('setup').hidden=false;$('setupMsg').textContent='This browser cannot do the encryption KidGuard needs. Open the page in Chrome or Safari.';return}
-  let S=clean(location.hash.slice(1));
+  if(!window.crypto||!crypto.subtle){show('setup');$('setupMsg').textContent='This browser cannot do the encryption KidGuard needs. Open the page in Chrome or Safari.';return}
+  const fromLink=clean(location.hash.slice(1));
   if(location.hash)history.replaceState(null,'',location.pathname);
-  if(!S){try{S=clean(localStorage.getItem('kg_s'))}catch(_){}}
-  if(S)start(S);else $('setup').hidden=false;
+  const legacy=clean(LS.get('kg_s'));
+  if(fromLink)askPin(fromLink);
+  else if(LS.get('kg_v'))askPin('');
+  else if(legacy)askPin(legacy);
+  else show('setup');
 })();
 </script>
 </body></html>
