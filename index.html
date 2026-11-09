@@ -24,7 +24,12 @@ button:disabled{opacity:.5}button.sec,.btn.sec{background:transparent;color:var(
 table{width:100%;border-collapse:collapse;font-size:14px}td{padding:5px 0}td:last-child{text-align:right;color:var(--mu)}
 input{width:100%;font:18px ui-monospace,Consolas,monospace;padding:12px;border-radius:11px;border:1px solid var(--bd);background:var(--card);color:var(--tx);margin:8px 0}
 #toast{position:fixed;left:16px;right:16px;bottom:18px;max-width:528px;margin:0 auto;background:#111827;color:#fff;padding:13px;border-radius:12px;text-align:center;display:none;z-index:9}
-.warn{color:var(--rd);font-weight:600}a.lnk{color:var(--mu)}
+.warn{color:var(--rd);font-weight:600}a.lnk{color:var(--mu)}a{color:var(--ac)}
+.tg{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--bd)}.tg .t{flex:1;min-width:0}.tg .n{font-weight:600}
+.tg button{flex:0 0 auto;min-width:72px;min-height:40px;line-height:40px}.tg input{width:90px;margin:0;padding:8px;font-size:16px}
+details{border-top:1px solid var(--bd);padding:10px 0}summary{font-weight:600;cursor:pointer}.li{display:flex;align-items:center;gap:8px;padding:6px 0}.li span{flex:1;overflow-wrap:anywhere;font-size:14px}
+.li button{flex:0 0 auto;min-height:34px;line-height:34px;padding:0 12px;font-size:13px}.add{display:flex;gap:8px}.add input{margin:6px 0}.add button{flex:0 0 auto;padding:0 16px;margin:6px 0}
+pre{white-space:pre-wrap;font-size:12px;margin:0;max-height:360px;overflow:auto}
 </style></head>
 <body><main>
 <section id="setup" class="card" hidden>
@@ -50,14 +55,19 @@ input{width:100%;font:18px ui-monospace,Consolas,monospace;padding:12px;border-r
     <div class="row"><button data-op="addTime" data-a='{"minutes":30}' data-done="Added 30 minutes">+30 min</button><button data-op="addTime" data-a='{"minutes":60}' data-done="Added 1 hour">+1 hour</button><button data-op="addTime" data-a='{"minutes":120}' data-done="Added 2 hours">+2 hours</button></div>
     <div class="row"><button class="dng" data-op="lockNow" data-c="Lock Baby's screen now?" data-done="Lock sent">Lock the screen now</button></div>
   </div>
-  <div class="card"><h2 id="bh">Blocked</h2><div id="blk" class="mu">-</div></div>
+  <div class="card"><h2 id="bh">Blocked</h2><div id="blk" class="mu">-</div>
+    <div class="row"><button class="sec" id="blkAll">Show the full list</button><button class="sec" id="blkClear">Clear the list</button></div></div>
   <div class="card"><h2>Websites</h2><div id="web" class="mu"></div>
     <div class="row"><button data-op="unlock" data-a='{"seconds":1800}' data-done="All websites free for 30 min">Free 30 min</button><button data-op="unlock" data-a='{"seconds":3600}' data-done="All websites free for 1 hour">Free 1 hour</button><button data-op="unlock" data-a='{"seconds":7200}' data-done="All websites free for 2 hours">Free 2 h</button></div>
     <div class="row"><button class="sec" data-op="relock" data-done="Websites back to the rules">End free time</button><button class="sec" id="net">Internet OFF</button></div>
     <div id="yt" class="mu" style="margin-top:10px"></div>
     <div class="row"><button class="sec" data-op="resetYoutube" data-c="Reset today's YouTube time?" data-done="YouTube time reset">Reset YouTube time</button></div>
   </div>
+  <div class="card"><h2>Settings &amp; lists</h2><div id="cfg"></div>
+    <div class="row"><button class="sec" id="cfgLoad">Show settings &amp; lists</button></div></div>
   <div class="card"><h2>Today's apps</h2><table id="use"></table></div>
+  <div class="card"><h2>Recent activity</h2><pre id="log" class="mu"></pre>
+    <div class="row"><button class="sec" id="logLoad">Show recent activity</button></div></div>
   <div class="card"><h2>Rules</h2><div id="pz" class="mu"></div>
     <div class="row"><button class="sec" id="pause">Pause all rules</button></div>
     <div class="row"><a class="btn sec" id="alerts" target="_blank" rel="noopener noreferrer">Phone alerts</a></div>
@@ -98,8 +108,10 @@ async function unseal(txt){
   let e;try{e=JSON.parse(txt)}catch(_){return null}
   if(!e||e.v!==1||e.d!=='s'||!e.iv||!e.c||!e.m)return null;
   try{
-    if(!await crypto.subtle.verify('HMAC',K.mac,ub64(e.m),te.encode('s.'+e.iv+'.'+e.c)))return null;
-    return JSON.parse(td.decode(await crypto.subtle.decrypt({name:'AES-CBC',iv:ub64(e.iv)},K.enc,ub64(e.c))));
+    if(!await crypto.subtle.verify('HMAC',K.mac,ub64(e.m),te.encode((e.z?'sz.':'s.')+e.iv+'.'+e.c)))return null;
+    let pt=new Uint8Array(await crypto.subtle.decrypt({name:'AES-CBC',iv:ub64(e.iv)},K.enc,ub64(e.c)));
+    if(e.z)pt=new Uint8Array(await new Response(new Blob([pt]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+    return JSON.parse(td.decode(pt));
   }catch(_){return null}
 }
 async function send(op,args){
@@ -141,7 +153,7 @@ function render(){
   const blk=[].concat(s.blk||[]);
   const fresh=blk.filter(b=>b.a<120).length;
   $('bh').textContent='Blocked'+(fresh?` (${fresh} now)`:'');
-  $('blk').innerHTML=blk.length?blk.map(blkRow).join(''):'<div class="mu">Nothing blocked.</div>';
+  if(!showAll)$('blk').innerHTML=blk.length?blk.map(blkRow).join(''):'<div class="mu">Nothing blocked.</div>';
   $('web').innerHTML='Mode: '+(s.net?'<span class="warn">INTERNET OFF</span>':(s.only?'approved sites only':'block list'))+(s.free?` - <b>all websites free until ${esc(s.free)}</b>`:'');
   $('net').textContent=s.net?'Internet back ON':'Internet OFF';
   $('yt').textContent=`YouTube: ${fmt(s.yt)} of ${s.ytMin} m`+(s.ytOff?' - closed for today':'');
@@ -182,12 +194,48 @@ function blkRow(b){
   const note=kind==='tool'||b.w==='tool'?'Blocked on purpose - a system tool that cannot be approved':kind==='bg'?'A Windows background part - fine to leave blocked':esc(b.w);
   const look=f?'':` - <a href="https://www.google.com/search?q=${encodeURIComponent('"'+b.l+'.exe" what is it')}" target="_blank" rel="noopener noreferrer">what is this?</a>`;
   const btn=(kind==='tool'||b.w==='tool')?'':`<button data-id="${esc(b.id)}" data-l="${esc(name)}">Approve</button>`;
-  return `<div class="${cls}"><div class="t"><div class="n">${esc(name)}<span class="pill">app</span></div><div class="mu">${note} - ${ago(b.a)}${f?'':' ('+esc(b.l)+')'}${look}</div></div>${btn}</div>`;
+  return `<div class="${cls}"><div class="t"><div class="n">${esc(name)}<span class="pill">app</span></div><div class="mu">${note} - ${ago(b.a)}${b.c>1?' - '+b.c+' times':''}${f?'':' ('+esc(b.l)+')'}${look}</div></div>${btn}</div>`;
 }
+// ---- full blocked list, settings, lists, activity (need the Surface update of 9 Nov)
+let showAll=false, CFG=null;
+const OLD='The Surface has not got this feature yet: it installs itself the next time the Surface is on home Wi-Fi with the PC on.';
+async function ask(op,args){try{const r=await send(op,args);if(!r.ok)throw new Error(r.msg||'failed');return r}catch(e){throw new Error(/did not answer/.test(e.message)&&op!=='status'?OLD+' (Or the Surface is offline.)':e.message)}}
+async function loadAllBlocked(){
+  const b=$('blkAll');b.disabled=true;$('blk').innerHTML='<div class="mu">Loading the full list...</div>';
+  try{let off=0,total=1,all=[];while(off<total){const r=await ask('blocked',{offset:off});total=r.data.total;const it=[].concat(r.data.items||[]);all=all.concat(it);off+=40;if(!it.length)break}
+    showAll=true;$('bh').textContent=`Blocked - full list (${all.length})`;$('blkAll').textContent='Show only the latest';
+    $('blk').innerHTML=all.length?all.map(blkRow).join(''):'<div class="mu">Nothing blocked.</div>'}
+  catch(e){showAll=false;toast(e.message);if(st)render()}finally{b.disabled=false}
+}
+const TOG=[['webApprovedOnly','Websites: only approved sites open','OFF = every website opens except the blocked list'],['facebookGroupsOnly','Facebook: groups only','Facebook home feed, reels and the rest stay closed'],
+ ['appsApprovedOnly','Apps: only approved apps run','OFF = every app runs except games and system tools'],['blockGames','Block games','Roblox, Minecraft, Steam, Fortnite, Discord ...'],
+ ['adultFilter','Adult-content filter','Safe search, restricted YouTube, family-safe internet'],['blockUsb','Block USB drives',''],['blockTools','Block system tools','Settings, Task Manager, command windows']];
+const NUM=[['dailyLimitMin','Daily screen time (minutes, 0 = no limit)'],['youtubeMin','YouTube per day (minutes)'],['extensionMin','YouTube extra time she can ask for (minutes)'],['autoLockHours','Lock the screen this many hours after unlocking (0 = off)']];
+const LISTS=[['approvedSites','Approved websites','example.com'],['blockSites','Always-blocked websites','example.com'],['approvedApps','Approved apps','app or package name']];
+function appName(x){const f=APPS[String(x).toLowerCase()];return f?f[0]+' ('+x+')':x}
+function renderCfg(){
+  const s=CFG.set;let h='';
+  for(const [k,l,hint] of TOG)h+=`<div class="tg"><div class="t"><div class="n">${l}</div><div class="mu">${hint}</div></div><button class="${s[k]?'':'sec'}" data-tg="${k}">${s[k]?'ON':'OFF'}</button></div>`;
+  for(const [k,l] of NUM)h+=`<div class="tg"><div class="t">${l}</div><input type="number" inputmode="decimal" min="0" id="n_${k}" value="${esc(s[k])}"><button data-save="${k}">Save</button></div>`;
+  for(const [k,l,ph] of LISTS){const items=[].concat(CFG[k]||[]);
+    h+=`<details><summary>${l} (${items.length})</summary>${items.map(it=>`<div class="li"><span>${k==='approvedApps'?esc(appName(it)):`<a href="https://${esc(it)}" target="_blank" rel="noopener noreferrer">${esc(it)}</a>`}</span><button class="sec" data-lr="${k}" data-it="${esc(it)}">Remove</button></div>`).join('')}
+      <div class="add"><input id="add_${k}" placeholder="${ph}" autocapitalize="none" autocorrect="off" spellcheck="false"><button data-la="${k}">Add</button></div></details>`}
+  $('cfg').innerHTML=h;$('cfgLoad').textContent='Reload settings';
+}
+async function loadCfg(){const b=$('cfgLoad');b.disabled=true;try{CFG=(await ask('config')).data;renderCfg()}catch(e){toast(e.message)}finally{b.disabled=false}}
+async function change(op,args,done){try{await ask(op,args);toast(done);await loadCfg();refresh(true)}catch(e){toast(e.message)}}
 function ago(a){if(a<90)return 'just now';if(a<3600)return Math.round(a/60)+' min ago';if(a<86400)return Math.round(a/3600)+' h ago';return 'earlier'}
 
 document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b||b.disabled)return;
+  if(b.id==='blkAll'){if(showAll){showAll=false;$('blkAll').textContent='Show the full list';if(st)render()}else loadAllBlocked();return}
+  if(b.id==='blkClear'){if(confirm('Clear the blocked list? Nothing gets approved; items reappear if blocked again.'))act('clearBlocked',{},'List cleared').then(()=>{if(showAll)loadAllBlocked()});return}
+  if(b.id==='cfgLoad'){loadCfg();return}
+  if(b.id==='logLoad'){ask('log').then(r=>{$('log').textContent=[].concat(r.data.log||[]).slice().reverse().map(l=>String(l).replace(/^(\d{4}-\d\d-\d\d)T(\d\d:\d\d):\d\d,/,'$1 $2  ').replace(/,/,'  ')).join('\n')}).catch(x=>toast(x.message));return}
+  if(b.dataset.tg){const k=b.dataset.tg,v=!CFG.set[k],l=(TOG.find(t=>t[0]===k)||[])[1];if(confirm(`${l}: switch ${v?'ON':'OFF'}?`))change('set',{key:k,value:v},`${l}: ${v?'ON':'OFF'}`);return}
+  if(b.dataset.save){const k=b.dataset.save,v=parseFloat($('n_'+k).value);if(isNaN(v)||v<0){toast('Type a number');return}change('set',{key:k,value:v},'Saved');return}
+  if(b.dataset.lr){if(confirm(`Remove "${b.dataset.it}" from this list?`))change('listRemove',{list:b.dataset.lr,item:b.dataset.it},'Removed');return}
+  if(b.dataset.la){const v=$('add_'+b.dataset.la).value.trim();if(!v){toast('Type a name first');return}change('listAdd',{list:b.dataset.la,item:v},'Added '+v);return}
   if(b.dataset.id){if(confirm(`Allow "${b.dataset.l}" from now on?`))act('approve',{id:b.dataset.id},'Approved '+b.dataset.l);return}
   if(b.id==='net'){const off=!(st&&st.net);if(!off||confirm('Switch OFF every website on Baby\'s account?'))act('internet',{off},off?'Internet is off':'Websites are back on');return}
   if(b.id==='pause'){const on=!(st&&st.paused);if(!on||confirm('Switch OFF every rule until you resume?'))act('pause',{on},on?'All rules paused':'Rules back on');return}
