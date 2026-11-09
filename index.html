@@ -58,7 +58,7 @@ pre{white-space:pre-wrap;font-size:12px;margin:0;max-height:360px;overflow:auto}
   <div class="card"><h2 id="bh">Blocked</h2><div id="blk" class="mu">-</div>
     <div class="row"><button class="sec" id="blkAll">Show the full list</button><button class="sec" id="blkClear">Clear the list</button></div></div>
   <div class="card"><h2>Websites</h2><div id="web" class="mu"></div><div id="tmp"></div>
-    <div class="add" id="tmpAdd"><input id="tmpSite" placeholder="Open one site for a while, e.g. khanacademy.org" autocapitalize="none" autocorrect="off" spellcheck="false"><button id="tmpGo">For a while</button></div>
+    <div class="add" id="tmpAdd"><input id="tmpSite" placeholder="Open a site for a while or daily, e.g. khanacademy.org" autocapitalize="none" autocorrect="off" spellcheck="false"><button id="tmpGo">Time limit</button></div>
     <div class="row"><button data-op="unlock" data-a='{"seconds":1800}' data-done="All websites free for 30 min">Free 30 min</button><button data-op="unlock" data-a='{"seconds":3600}' data-done="All websites free for 1 hour">Free 1 hour</button><button data-op="unlock" data-a='{"seconds":7200}' data-done="All websites free for 2 hours">Free 2 h</button></div>
     <div class="row"><button class="sec" id="mode">Change mode</button></div>
     <div class="row"><button class="sec" data-op="relock" data-done="Websites back to the rules">End free time</button><button class="sec" id="net">Internet OFF</button></div>
@@ -157,8 +157,9 @@ function render(){
   $('bh').textContent='Blocked'+(fresh?` (${fresh} now)`:'');
   if(!showAll&&!$('blk').querySelector('.tch'))$('blk').innerHTML=blk.length?blk.map(blkRow).join(''):'<div class="mu">Nothing blocked.</div>';
   $('web').innerHTML='Mode: '+(s.net?'<span class="warn">INTERNET OFF</span>':(s.only?'approved sites only':'block list'))+(s.free?` - <b>all websites free until ${esc(s.free)}</b>`:'');
-  const tmp=[].concat(s.tmp||[]);
-  $('tmp').innerHTML=tmp.map(t=>`<div class="li"><span><a href="https://${esc(t.h)}" target="_blank" rel="noopener noreferrer">${esc(t.h)}</a> open until <b>${esc(t.u)}</b></span><button class="sec" data-te="${esc(t.h)}">End now</button></div>`).join('');
+  const tmp=[].concat(s.tmp||[]),day=[].concat(s.day||[]),lnk=h=>`<a href="https://${esc(h)}" target="_blank" rel="noopener noreferrer">${esc(h)}</a>`;
+  $('tmp').innerHTML=tmp.map(t=>`<div class="li"><span>${lnk(t.h)} open until <b>${esc(t.u)}</b></span><button class="sec" data-te="${esc(t.h)}">End now</button></div>`).join('')
+   +day.map(d=>`<div class="li"><span>${lnk(d.h)} ${d.m} min every day - ${d.u>=d.m?'<span class="warn">used up today</span>':`${d.u} min used today`}</span><button class="sec" data-de="${esc(d.h)}">Stop</button></div>`).join('');
   $('net').textContent=s.net?'Internet back ON':'Internet OFF';
   $('mode').textContent=s.only?'Switch to: every site except the blocked list':'Switch to: only approved sites';
   $('yt').textContent=`YouTube: ${fmt(s.yt)} of ${s.ytMin} m`+(s.ytOff?' - closed for today':'');
@@ -192,7 +193,7 @@ function blkRow(b){
   const key=String(b.id||'').replace(/^(app|site):/,''), cls='bl'+(b.a<120?' new':'');
   if(b.k==='site'){
     const host=key.replace(/[^a-z0-9.-]/gi,'');
-    return `<div class="${cls}"><div class="t"><div class="n"><a href="https://${esc(host)}" target="_blank" rel="noopener noreferrer">${esc(host)}</a><span class="pill">website</span></div><div class="mu">${esc(b.w)} - ${ago(b.a)} - tap the name to see the site</div></div><div class="bb"><button data-id="${esc(b.id)}" data-l="${esc(host)}">Approve</button><button class="sec" data-tmp="${esc(host)}">For a while</button></div></div>`;
+    return `<div class="${cls}"><div class="t"><div class="n"><a href="https://${esc(host)}" target="_blank" rel="noopener noreferrer">${esc(host)}</a><span class="pill">website</span></div><div class="mu">${esc(b.w)} - ${ago(b.a)} - tap the name to see the site</div></div><div class="bb"><button data-id="${esc(b.id)}" data-l="${esc(host)}">Approve</button><button class="sec" data-tmp="${esc(host)}">Time limit</button></div></div>`;
   }
   const f=APPS[key]||APPS[String(b.l).toLowerCase()];
   const name=f?f[0]:b.l, kind=f?f[1]:'';
@@ -203,6 +204,7 @@ function blkRow(b){
 }
 // ---- full blocked list, settings, lists, activity (need the Surface update of 9 Nov)
 let showAll=false, CFG=null;
+const DUR=[[15,'15 min'],[30,'30 min'],[60,'1 hour'],[120,'2 hours']];
 const OLD='The Surface has not got this feature yet: it installs itself the next time the Surface is on home Wi-Fi with the PC on.';
 async function ask(op,args){try{const r=await send(op,args);if(!r.ok)throw new Error(r.msg||'failed');return r}catch(e){throw new Error(/did not answer/.test(e.message)&&op!=='status'?OLD+' (Or the Surface is offline.)':e.message)}}
 async function loadAllBlocked(){
@@ -244,9 +246,11 @@ document.addEventListener('click',e=>{
   if(b.dataset.la){const v=$('add_'+b.dataset.la).value.trim();if(!v){toast('Type a name first');return}change('listAdd',{list:b.dataset.la,item:v},'Added '+v);return}
   if(b.dataset.tmp||b.id==='tmpGo'){const h=b.dataset.tmp||$('tmpSite').value.trim();if(!h){toast('Type a website first');return}
     document.querySelectorAll('.tch').forEach(x=>x.remove());const at=b.dataset.tmp?b.closest('.bl'):$('tmpAdd');
-    at.insertAdjacentHTML('afterend',`<div class="row tch"><div class="mu" style="flex:1 0 100%">Open ${esc(h)} for:</div>${[[15,'15 min'],[30,'30 min'],[60,'1 hour'],[120,'2 hours']].map(([m,l])=>`<button data-ta="${esc(h)}" data-m="${m}">${l}</button>`).join('')}<button class="sec" data-tx="1">Cancel</button></div>`);return}
+    at.insertAdjacentHTML('afterend',`<div class="row tch"><div class="mu" style="flex:1 0 100%">Open ${esc(h)} now, once, for:</div>${DUR.map(([m,l])=>`<button data-ta="${esc(h)}" data-m="${m}">${l}</button>`).join('')}<div class="mu" style="flex:1 0 100%">...or every day, for this much use a day:</div>${DUR.map(([m,l])=>`<button class="sec" data-da="${esc(h)}" data-m="${m}">${l} a day</button>`).join('')}<button class="sec" data-tx="1" style="flex:1 0 100%">Cancel</button></div>`);return}
   if(b.dataset.tx){b.closest('.tch').remove();return}
   if(b.dataset.ta){const h=b.dataset.ta,m=+b.dataset.m;b.closest('.tch').remove();ask('tempAllow',{site:h,minutes:m}).then(()=>{toast(`${h} is open for ${m<60?m+' min':m/60+' h'}, then blocked again`);$('tmpSite').value='';refresh(true);if(showAll)loadAllBlocked()}).catch(x=>toast(x.message));return}
+  if(b.dataset.da){const h=b.dataset.da,m=+b.dataset.m;b.closest('.tch').remove();ask('dailyAllow',{site:h,minutes:m}).then(()=>{toast(`${h}: ${m<60?m+' min':m/60+' h'} of use every day, then closed till midnight`);$('tmpSite').value='';refresh(true);if(showAll)loadAllBlocked()}).catch(x=>toast(x.message));return}
+  if(b.dataset.de){if(confirm(`Stop the daily time for ${b.dataset.de}? It goes back to the normal rules.`))ask('dailyAllow',{site:b.dataset.de,minutes:0}).then(()=>{toast('Daily time removed for '+b.dataset.de);refresh(true)}).catch(x=>toast(x.message));return}
   if(b.dataset.te){if(confirm(`Block ${b.dataset.te} again now?`))ask('tempAllow',{site:b.dataset.te,minutes:0}).then(()=>{toast(b.dataset.te+' blocked again');refresh(true)}).catch(x=>toast(x.message));return}
   if(b.dataset.id){if(confirm(`Allow "${b.dataset.l}" from now on?`))act('approve',{id:b.dataset.id},'Approved '+b.dataset.l);return}
   if(b.id==='net'){const off=!(st&&st.net);if(!off||confirm('Switch OFF every website on Baby\'s account?'))act('internet',{off},off?'Internet is off':'Websites are back on');return}
