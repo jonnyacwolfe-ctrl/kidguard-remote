@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://ntfy.sh; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="theme-color" content="#2563eb">
+<title>KidGuard</title>
+<style>
+:root{--bg:#f3f4f6;--card:#fff;--tx:#111827;--mu:#6b7280;--ac:#2563eb;--rd:#dc2626;--gn:#16a34a;--bd:#e5e7eb}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#1a1d23;--tx:#e5e7eb;--mu:#9ca3af;--ac:#60a5fa;--rd:#f87171;--gn:#4ade80;--bd:#2b2f37}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:560px;margin:0 auto;padding:8px 16px 48px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:12px 0}
+h1{font-size:22px;margin:0 0 8px}h2{font-size:13px;margin:0 0 8px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}
+.big{font-size:19px;font-weight:650}.mu{color:var(--mu);font-size:14px}.c{text-align:center}
+.row{display:flex;gap:8px;margin-top:10px}.row>*{flex:1}
+button,.btn{display:block;min-height:46px;border:0;border-radius:11px;background:var(--ac);color:#fff;font:600 15px system-ui,sans-serif;text-align:center;text-decoration:none;line-height:46px;padding:0 8px;cursor:pointer}
+button:disabled{opacity:.5}button.sec,.btn.sec{background:transparent;color:var(--ac);border:1.5px solid var(--ac);line-height:43px}button.dng{background:var(--rd)}
+.bar{height:9px;background:var(--bd);border-radius:5px;overflow:hidden;margin:10px 0 4px}.bar i{display:block;height:100%;width:0;background:var(--gn)}
+.bl{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--bd)}.bl:first-child{border-top:0}
+.bl .t{flex:1;min-width:0}.bl .n{font-weight:600;overflow-wrap:anywhere}.bl button{flex:0 0 auto;min-height:40px;line-height:40px;padding:0 16px}
+.new .n{color:var(--rd)}.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:9px;background:var(--bd);color:var(--mu);margin-left:6px}
+table{width:100%;border-collapse:collapse;font-size:14px}td{padding:5px 0}td:last-child{text-align:right;color:var(--mu)}
+input{width:100%;font:18px ui-monospace,Consolas,monospace;padding:12px;border-radius:11px;border:1px solid var(--bd);background:var(--card);color:var(--tx);margin:8px 0}
+#toast{position:fixed;left:16px;right:16px;bottom:18px;max-width:528px;margin:0 auto;background:#111827;color:#fff;padding:13px;border-radius:12px;text-align:center;display:none;z-index:9}
+.warn{color:var(--rd);font-weight:600}a.lnk{color:var(--mu)}
+</style></head>
+<body><main>
+<section id="setup" class="card" hidden>
+  <h1>KidGuard</h1>
+  <p>Type the code shown on the Surface's setup window.</p>
+  <input id="code" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="abcde fghij ...">
+  <button id="connect">Connect</button>
+  <p class="mu" id="setupMsg"></p>
+</section>
+<section id="app" hidden>
+  <div class="card">
+    <div class="big" id="scr">Connecting to the Surface...</div>
+    <div class="mu" id="sub"></div>
+    <div class="bar"><i id="tbar"></i></div>
+    <div id="time" class="mu"></div>
+    <div class="row"><button data-op="addTime" data-a='{"minutes":30}' data-done="Added 30 minutes">+30 min</button><button data-op="addTime" data-a='{"minutes":60}' data-done="Added 1 hour">+1 hour</button><button data-op="addTime" data-a='{"minutes":120}' data-done="Added 2 hours">+2 hours</button></div>
+    <div class="row"><button class="dng" data-op="lockNow" data-c="Lock Baby's screen now?" data-done="Lock sent">Lock the screen now</button></div>
+  </div>
+  <div class="card"><h2 id="bh">Blocked</h2><div id="blk" class="mu">-</div></div>
+  <div class="card"><h2>Websites</h2><div id="web" class="mu"></div>
+    <div class="row"><button data-op="unlock" data-a='{"seconds":1800}' data-done="All websites free for 30 min">Free 30 min</button><button data-op="unlock" data-a='{"seconds":3600}' data-done="All websites free for 1 hour">Free 1 hour</button><button data-op="unlock" data-a='{"seconds":7200}' data-done="All websites free for 2 hours">Free 2 h</button></div>
+    <div class="row"><button class="sec" data-op="relock" data-done="Websites back to the rules">End free time</button><button class="sec" id="net">Internet OFF</button></div>
+    <div id="yt" class="mu" style="margin-top:10px"></div>
+    <div class="row"><button class="sec" data-op="resetYoutube" data-c="Reset today's YouTube time?" data-done="YouTube time reset">Reset YouTube time</button></div>
+  </div>
+  <div class="card"><h2>Today's apps</h2><table id="use"></table></div>
+  <div class="card"><h2>Rules</h2><div id="pz" class="mu"></div>
+    <div class="row"><button class="sec" id="pause">Pause all rules</button></div>
+    <div class="row"><a class="btn sec" id="alerts" target="_blank" rel="noopener noreferrer">Phone alerts</a></div>
+    <p class="mu">Phone alerts opens ntfy.sh: tap Subscribe and allow notifications. Alerts never contain names or details.</p>
+  </div>
+  <p class="mu c" id="foot"></p>
+  <p class="mu c"><a class="lnk" href="#" id="forget">Disconnect this phone</a></p>
+</section>
+</main><div id="toast"></div>
+<script>
+'use strict';
+const ALPH='abcdefghijkmnpqrstuvwxyz23456789', NTFY='https://ntfy.sh';
+const te=new TextEncoder(), td=new TextDecoder(), $=id=>document.getElementById(id);
+let K=null, TOPIC='', ATOPIC='', es=null, st=null, stTs=0, pending={}, pollT=null;
+const b64=b=>{let s='';for(const x of new Uint8Array(b))s+=String.fromCharCode(x);return btoa(s)};
+const ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+const sha=s=>crypto.subtle.digest('SHA-256',te.encode(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(t){const m=$('toast');m.textContent=t;m.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>m.style.display='none',3000)}
+function fmt(sec){let m=Math.max(0,Math.round(sec/60));const h=Math.floor(m/60);m%=60;return h?`${h} h ${String(m).padStart(2,'0')} m`:`${m} m`}
+function clean(s){s=String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');return (s.length===26&&[...s].every(c=>ALPH.includes(c)))?s:''}
+
+async function init(S){
+  TOPIC='kg'+hex(await sha('topic|'+S)).slice(0,24); ATOPIC='kg'+hex(await sha('alert|'+S)).slice(0,24);
+  const k=await crypto.subtle.importKey('raw',await sha('key|'+S),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const enc=await crypto.subtle.sign('HMAC',k,te.encode('enc')), mac=await crypto.subtle.sign('HMAC',k,te.encode('mac'));
+  K={enc:await crypto.subtle.importKey('raw',enc,'AES-CBC',false,['encrypt','decrypt']),mac:await crypto.subtle.importKey('raw',mac,{name:'HMAC',hash:'SHA-256'},false,['sign','verify'])};
+  $('alerts').href=NTFY+'/'+ATOPIC;
+}
+async function seal(obj){
+  const iv=crypto.getRandomValues(new Uint8Array(16));
+  const c=await crypto.subtle.encrypt({name:'AES-CBC',iv},K.enc,te.encode(JSON.stringify(obj)));
+  const ivs=b64(iv), cs=b64(c), m=await crypto.subtle.sign('HMAC',K.mac,te.encode('p.'+ivs+'.'+cs));
+  return JSON.stringify({v:1,d:'p',iv:ivs,c:cs,m:b64(m)});
+}
+async function unseal(txt){
+  let e;try{e=JSON.parse(txt)}catch(_){return null}
+  if(!e||e.v!==1||e.d!=='s'||!e.iv||!e.c||!e.m)return null;
+  try{
+    if(!await crypto.subtle.verify('HMAC',K.mac,ub64(e.m),te.encode('s.'+e.iv+'.'+e.c)))return null;
+    return JSON.parse(td.decode(await crypto.subtle.decrypt({name:'AES-CBC',iv:ub64(e.iv)},K.enc,ub64(e.c))));
+  }catch(_){return null}
+}
+async function send(op,args){
+  const n=b64(crypto.getRandomValues(new Uint8Array(12)));
+  const message=await seal({ts:Math.floor(Date.now()/1000),n,op,args:args||{}});
+  const p=new Promise((res,rej)=>{pending[n]=res;setTimeout(()=>{if(pending[n]){delete pending[n];rej(new Error('The Surface did not answer. It may be asleep, off or without internet.'))}},25000)});
+  const r=await fetch(NTFY+'/',{method:'POST',body:JSON.stringify({topic:TOPIC,message})});
+  if(!r.ok){delete pending[n];throw new Error('Could not reach ntfy.sh ('+r.status+')')}
+  return p;
+}
+function listen(){
+  if(es)es.close();
+  es=new EventSource(`${NTFY}/${TOPIC}/sse?since=${Math.floor(Date.now()/1000)-5}`);
+  es.onmessage=async ev=>{
+    let m;try{m=JSON.parse(ev.data)}catch(_){return}
+    if(m.event!=='message')return;
+    const r=await unseal(m.message); if(!r)return;
+    if(r.st&&r.ts>=stTs){stTs=r.ts;st=r.st;render()}
+    if(r.re&&pending[r.re]){const f=pending[r.re];delete pending[r.re];f(r)}
+  };
+}
+async function act(op,args,done){
+  document.querySelectorAll('button').forEach(b=>b.disabled=true);
+  try{const r=await send(op,args);toast(r.ok?(done||'Done'):('Failed: '+(r.msg||'unknown')))}
+  catch(e){toast(e.message)}
+  finally{document.querySelectorAll('button').forEach(b=>b.disabled=false)}
+}
+async function refresh(quiet){try{await send('status')}catch(e){if(!quiet)toast(e.message);if(!st)$('scr').textContent='The Surface is not answering';$('sub').textContent='It may be asleep, off or without internet. Retrying...'}}
+
+function render(){
+  const s=st;
+  const who={open:'Baby is using the Surface',locked:'The Surface is locked',out:'Baby is signed out'}[s.scr]||'Status unknown';
+  $('scr').textContent=who;
+  $('sub').innerHTML=(s.scr==='open'&&s.app?'Now: '+esc(s.app):'')+(s.agent?'':' <span class="warn">KidGuard agent is not running!</span>');
+  const tot=(s.lim+s.bonus)*60;
+  if(s.lim>0){$('tbar').style.width=Math.min(100,100*s.used/Math.max(1,tot))+'%';$('tbar').style.background=s.up?'var(--rd)':'var(--gn)';
+    $('time').innerHTML=`Screen time: ${fmt(s.used)} of ${fmt(tot)}`+(s.bonus?` (incl. ${s.bonus} min you added)`:'')+' - '+(s.up?'<span class="warn">TIME IS UP</span>':fmt(tot-s.used)+' left')}
+  else{$('tbar').style.width='0';$('time').textContent=`Screen time: ${fmt(s.used)} (no daily limit)`}
+  const blk=[].concat(s.blk||[]);
+  const fresh=blk.filter(b=>b.a<120).length;
+  $('bh').textContent='Blocked'+(fresh?` (${fresh} now)`:'');
+  $('blk').innerHTML=blk.length?blk.map(b=>`<div class="bl${b.a<120?' new':''}"><div class="t"><div class="n">${esc(b.l)}<span class="pill">${b.k==='site'?'website':'app'}</span></div><div class="mu">${esc(b.w)} - ${ago(b.a)}</div></div><button data-id="${esc(b.id)}" data-l="${esc(b.l)}">Approve</button></div>`).join(''):'<div class="mu">Nothing blocked.</div>';
+  $('web').innerHTML='Mode: '+(s.net?'<span class="warn">INTERNET OFF</span>':(s.only?'approved sites only':'block list'))+(s.free?` - <b>all websites free until ${esc(s.free)}</b>`:'');
+  $('net').textContent=s.net?'Internet back ON':'Internet OFF';
+  $('yt').textContent=`YouTube: ${fmt(s.yt)} of ${s.ytMin} m`+(s.ytOff?' - closed for today':'');
+  $('pz').innerHTML=s.paused?'<span class="warn">ALL RULES ARE PAUSED</span>':'Rules are on.';
+  $('pause').textContent=s.paused?'Resume all rules':'Pause all rules';
+  const use=[].concat(s.use||[]);
+  $('use').innerHTML=use.length?use.map(u=>`<tr><td>${esc(u.n)}</td><td>${fmt(u.s)}</td></tr>`).join(''):'<tr><td class="mu">No use yet today.</td></tr>';
+  $('foot').textContent='Surface time '+s.at;
+}
+function ago(a){if(a<90)return 'just now';if(a<3600)return Math.round(a/60)+' min ago';if(a<86400)return Math.round(a/3600)+' h ago';return 'earlier'}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b||b.disabled)return;
+  if(b.dataset.id){if(confirm(`Allow "${b.dataset.l}" from now on?`))act('approve',{id:b.dataset.id},'Approved '+b.dataset.l);return}
+  if(b.id==='net'){const off=!(st&&st.net);if(!off||confirm('Switch OFF every website on Baby\'s account?'))act('internet',{off},off?'Internet is off':'Websites are back on');return}
+  if(b.id==='pause'){const on=!(st&&st.paused);if(!on||confirm('Switch OFF every rule until you resume?'))act('pause',{on},on?'All rules paused':'Rules back on');return}
+  if(b.dataset.op){if(b.dataset.c&&!confirm(b.dataset.c))return;act(b.dataset.op,b.dataset.a?JSON.parse(b.dataset.a):{},b.dataset.done)}
+});
+$('forget').addEventListener('click',e=>{e.preventDefault();if(confirm('Disconnect this phone? You will need the setup code again.')){try{localStorage.removeItem('kg_s')}catch(_){}location.reload()}});
+$('connect').addEventListener('click',()=>{const s=clean($('code').value);if(!s){$('setupMsg').textContent='That code is not right: it has 26 letters and digits.';return}start(s)});
+
+async function start(S){
+  try{localStorage.setItem('kg_s',S)}catch(_){}
+  await init(S); $('setup').hidden=true; $('app').hidden=false; listen();
+  setTimeout(()=>refresh(false),700);
+  clearInterval(pollT); pollT=setInterval(()=>{if(!document.hidden)refresh(true)},30000);
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&K){listen();setTimeout(()=>refresh(true),500)}});
+(function(){
+  if(!window.crypto||!crypto.subtle){$('setup').hidden=false;$('setupMsg').textContent='This browser cannot do the encryption KidGuard needs. Open the page in Chrome or Safari.';return}
+  let S=clean(location.hash.slice(1));
+  if(location.hash)history.replaceState(null,'',location.pathname);
+  if(!S){try{S=clean(localStorage.getItem('kg_s'))}catch(_){}}
+  if(S)start(S);else $('setup').hidden=false;
+})();
+</script>
+</body></html>
