@@ -234,7 +234,7 @@ document.addEventListener('click',e=>{
   if(b.id==='blkClear'){if(confirm('Clear the blocked list? Nothing gets approved; items reappear if blocked again.'))act('clearBlocked',{},'List cleared').then(()=>{if(showAll)loadAllBlocked()});return}
   if(b.id==='cfgLoad'){loadCfg();return}
   if(b.id==='mode'){const v=!(st&&st.only);if(confirm(v?'Only approved websites will open. Switch?':'Every website will open except the always-blocked list. Switch?'))ask('set',{key:'webApprovedOnly',value:v}).then(()=>{toast(v?'Only approved sites now':'Every site except the blocked list now');refresh(true);if(CFG)loadCfg()}).catch(x=>toast(x.message));return}
-  if(b.id==='logLoad'){ask('log').then(r=>{$('log').textContent=[].concat(r.data.log||[]).slice().reverse().map(l=>String(l).replace(/^(\d{4}-\d\d-\d\d)T(\d\d:\d\d):\d\d,/,'$1 $2  ').replace(/,/,'  ')).join('\n')}).catch(x=>toast(x.message));return}
+  if(b.id==='logLoad'){ask('log').then(r=>{$('log').textContent=[].concat(r.data.log||[]).filter(l=>!/^time,/.test(l)).reverse().map(l=>String(l).replace(/^(\d{4}-\d\d-\d\d)T(\d\d:\d\d):\d\d,/,'$1 $2  ').replace(/,/,'  ')).join('\n')}).catch(x=>toast(x.message));return}
   if(b.dataset.tg){const k=b.dataset.tg,v=!CFG.set[k],l=(TOG.find(t=>t[0]===k)||[])[1];if(confirm(`${l}: switch ${v?'ON':'OFF'}?`))change('set',{key:k,value:v},`${l}: ${v?'ON':'OFF'}`);return}
   if(b.dataset.save){const k=b.dataset.save,v=parseFloat($('n_'+k).value);if(isNaN(v)||v<0){toast('Type a number');return}change('set',{key:k,value:v},'Saved');return}
   if(b.dataset.lr){if(confirm(`Remove "${b.dataset.it}" from this list?`))change('listRemove',{list:b.dataset.lr,item:b.dataset.it},'Removed');return}
