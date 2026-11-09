@@ -89,7 +89,7 @@ const ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
 const sha=s=>crypto.subtle.digest('SHA-256',te.encode(s));
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function toast(t){const m=$('toast');m.textContent=t;m.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>m.style.display='none',3000)}
+function toast(t){const m=$('toast');m.textContent=t;m.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>m.style.display='none',Math.max(3000,String(t).length*70))}
 function fmt(sec){let m=Math.max(0,Math.round(sec/60));const h=Math.floor(m/60);m%=60;return h?`${h} h ${String(m).padStart(2,'0')} m`:`${m} m`}
 function clean(s){s=String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');return (s.length===26&&[...s].every(c=>ALPH.includes(c)))?s:''}
 
@@ -157,6 +157,7 @@ function render(){
   $('bh').textContent='Blocked'+(fresh?` (${fresh} now)`:'');
   if(!showAll&&!$('blk').querySelector('.tch'))$('blk').innerHTML=blk.length?blk.map(blkRow).join(''):'<div class="mu">Nothing blocked.</div>';
   $('web').innerHTML='Mode: '+(s.net?'<span class="warn">INTERNET OFF</span>':(s.only?'approved sites only':'block list'))+(s.free?` - <b>all websites free until ${esc(s.free)}</b>`:'');
+  if(s.tmp===undefined)$('web').innerHTML+='<div class="warn">The Surface is not updated yet: "Time limit", the full list, settings and activity start working after the update.</div>';
   const tmp=[].concat(s.tmp||[]),day=[].concat(s.day||[]),lnk=h=>`<a href="https://${esc(h)}" target="_blank" rel="noopener noreferrer">${esc(h)}</a>`;
   $('tmp').innerHTML=tmp.map(t=>`<div class="li"><span>${lnk(t.h)} open until <b>${esc(t.u)}</b></span><button class="sec" data-te="${esc(t.h)}">End now</button></div>`).join('')
    +day.map(d=>`<div class="li"><span>${lnk(d.h)} ${d.m} min every day - ${d.u>=d.m?'<span class="warn">used up today</span>':`${d.u} min used today`}</span><button class="sec" data-de="${esc(d.h)}">Stop</button></div>`).join('');
@@ -206,7 +207,8 @@ function blkRow(b){
 let showAll=false, CFG=null;
 const DUR=[[15,'15 min'],[30,'30 min'],[60,'1 hour'],[120,'2 hours']];
 const OLD='The Surface has not got this feature yet: it installs itself the next time the Surface is on home Wi-Fi with the PC on.';
-async function ask(op,args){try{const r=await send(op,args);if(!r.ok)throw new Error(r.msg||'failed');return r}catch(e){throw new Error(/did not answer/.test(e.message)&&op!=='status'?OLD+' (Or the Surface is offline.)':e.message)}}
+const NEWOPS=['tempAllow','dailyAllow','config','blocked','set','listAdd','listRemove','log'];
+async function ask(op,args){if(st&&st.tmp===undefined&&NEWOPS.includes(op))throw new Error('The Surface still has the old KidGuard, so this button does nothing yet. It starts working once the Surface update is installed.');try{const r=await send(op,args);if(!r.ok)throw new Error(r.msg||'failed');return r}catch(e){throw new Error(/did not answer/.test(e.message)&&op!=='status'?OLD+' (Or the Surface is offline.)':e.message)}}
 async function loadAllBlocked(){
   const b=$('blkAll');b.disabled=true;$('blk').innerHTML='<div class="mu">Loading the full list...</div>';
   try{let off=0,total=1,all=[];while(off<total){const r=await ask('blocked',{offset:off});total=r.data.total;const it=[].concat(r.data.items||[]);all=all.concat(it);off+=40;if(!it.length)break}
