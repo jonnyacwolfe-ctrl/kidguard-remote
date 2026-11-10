@@ -219,7 +219,7 @@ async function loadAllBlocked(){
 const TOG=[['webApprovedOnly','Websites: only approved sites open','OFF = every website opens except the blocked list'],['facebookGroupsOnly','Facebook: groups only','Facebook home feed, reels and the rest stay closed'],
  ['appsApprovedOnly','Apps: only approved apps run','OFF = every app runs except games and system tools'],['blockGames','Block games','Roblox, Minecraft, Steam, Fortnite, Discord ...'],
  ['adultFilter','Adult-content filter','Safe search, restricted YouTube, family-safe internet'],['blockUsb','Block USB drives',''],['blockTools','Block system tools','Settings, Task Manager, command windows']];
-const NUM=[['dailyLimitMin','Daily screen time (minutes, 0 = no limit)'],['youtubeMin','YouTube per day (minutes)'],['extensionMin','YouTube extra time she can ask for (minutes)'],['autoLockHours','Lock the screen this many hours after unlocking (0 = off)']];
+const NUM=[['dailyLimitMin','Daily screen time (minutes, 0 = no limit)'],['youtubeMin','YouTube per day (minutes)'],['extensionMin','YouTube extra time she can ask for (minutes)'],['autoLockHours','Lock the screen this many hours after unlocking (0 = off)'],['graceMin','Grace: a new app or website works this many minutes a day before it is blocked (0 = block at once)']];
 const LISTS=[['approvedSites','Approved websites','example.com'],['blockSites','Always-blocked websites','example.com'],['approvedApps','Approved apps','app or package name']];
 function appName(x){const f=APPS[String(x).toLowerCase()];return f?f[0]+' ('+x+')':x}
 function renderCfg(){
