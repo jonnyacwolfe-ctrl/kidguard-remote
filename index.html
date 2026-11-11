@@ -29,6 +29,7 @@ input{width:100%;font:18px ui-monospace,Consolas,monospace;padding:12px;border-r
 .tg button{flex:0 0 auto;min-width:72px;min-height:40px;line-height:40px}.tg input{width:90px;margin:0;padding:8px;font-size:16px}
 details{border-top:1px solid var(--bd);padding:10px 0}summary{font-weight:600;cursor:pointer}.li{display:flex;align-items:center;gap:8px;padding:6px 0}.li span{flex:1;overflow-wrap:anywhere;font-size:14px}
 .li button{flex:0 0 auto;min-height:34px;line-height:34px;padding:0 12px;font-size:13px}.add{display:flex;gap:8px}.bb{display:flex;flex-direction:column;gap:6px}.bb button{padding:0 12px!important;min-height:36px!important;line-height:36px!important;font-size:14px}.tch{flex-wrap:wrap;margin:0 0 10px}.tch>*{flex:1 0 40%}.add input{margin:6px 0}.add button{flex:0 0 auto;padding:0 16px;margin:6px 0}
+.pill.now{background:var(--gn);color:#fff}h3{font-size:14px;margin:12px 0 2px}
 pre{white-space:pre-wrap;font-size:12px;margin:0;max-height:360px;overflow:auto}
 </style></head>
 <body><main>
@@ -67,7 +68,8 @@ pre{white-space:pre-wrap;font-size:12px;margin:0;max-height:360px;overflow:auto}
   </div>
   <div class="card"><h2>Settings &amp; lists</h2><div id="cfg"></div>
     <div class="row"><button class="sec" id="cfgLoad">Show settings &amp; lists</button></div></div>
-  <div class="card"><h2>Today's apps</h2><table id="use"></table></div>
+  <div class="card"><h2>In use today</h2><div class="mu">Every app and website Baby used today, most first. Tap Limit to give it a daily time, stop it later today, or block it.</div><div id="iu"></div><table id="use"></table>
+    <div class="row"><button class="sec" id="iuLoad">Show what she uses</button></div></div>
   <div class="card"><h2>Recent activity</h2><pre id="log" class="mu"></pre>
     <div class="row"><button class="sec" id="logLoad">Show recent activity</button></div></div>
   <div class="card"><h2>Rules</h2><div id="pz" class="mu"></div>
@@ -167,7 +169,8 @@ function render(){
   $('pz').innerHTML=s.paused?'<span class="warn">ALL RULES ARE PAUSED</span>':'Rules are on.';
   $('pause').textContent=s.paused?'Resume all rules':'Pause all rules';
   const use=[].concat(s.use||[]);
-  $('use').innerHTML=use.length?use.map(u=>`<tr><td>${esc(u.n)}</td><td>${fmt(u.s)}</td></tr>`).join(''):'<tr><td class="mu">No use yet today.</td></tr>';
+  $('use').innerHTML=s.iu?'':(use.length?use.map(u=>`<tr><td>${esc(u.n)}</td><td>${fmt(u.s)}</td></tr>`).join(''):'<tr><td class="mu">No use yet today.</td></tr>');
+  if(s.iu&&!iuTried){iuTried=true;loadIU(true)}
   $('foot').textContent='Surface time '+s.at;
 }
 // what the cryptic Windows names are. bg = a Windows background helper (harmless to leave blocked); tool = can never be approved
@@ -200,15 +203,15 @@ function blkRow(b){
   const name=f?f[0]:b.l, kind=f?f[1]:'';
   const note=kind==='tool'||b.w==='tool'?'Blocked on purpose - a system tool that cannot be approved':kind==='bg'?'A Windows background part - fine to leave blocked':esc(b.w)+' - frozen, not closed: approving lets it carry on';
   const look=f?'':` - <a href="https://www.google.com/search?q=${encodeURIComponent('"'+b.l+'.exe" what is it')}" target="_blank" rel="noopener noreferrer">what is this?</a>`;
-  const btn=(kind==='tool'||b.w==='tool')?'':`<button data-id="${esc(b.id)}" data-l="${esc(name)}">Approve</button>`;
+  const btn=(kind==='tool'||b.w==='tool')?'':`<div class="bb"><button data-id="${esc(b.id)}" data-l="${esc(name)}">Approve</button>${b.w==='browser'?'':`<button class="sec" data-lim="app" data-blk="1" data-k="${esc(key)}" data-l="${esc(name)}" data-d="0">Time limit</button>`}</div>`;
   return `<div class="${cls}"><div class="t"><div class="n">${esc(name)}<span class="pill">app</span></div><div class="mu">${note} - ${ago(b.a)}${b.c>1?' - '+b.c+' times':''}${f?'':' ('+esc(b.l)+')'}${look}</div></div>${btn}</div>`;
 }
 // ---- full blocked list, settings, lists, activity (need the Surface update of 9 Nov)
 let showAll=false, CFG=null;
 const DUR=[[15,'15 min'],[30,'30 min'],[60,'1 hour'],[120,'2 hours']];
 const OLD='The Surface has not got this feature yet: it installs itself the next time the Surface is on home Wi-Fi with the PC on.';
-const NEWOPS=['tempAllow','dailyAllow','config','blocked','set','listAdd','listRemove','log'];
-async function ask(op,args){if(st&&st.tmp===undefined&&NEWOPS.includes(op))throw new Error('The Surface still has the old KidGuard, so this button does nothing yet. It starts working once the Surface update is installed.');try{const r=await send(op,args);if(!r.ok)throw new Error(r.msg||'failed');return r}catch(e){throw new Error(/did not answer/.test(e.message)&&op!=='status'?OLD+' (Or the Surface is offline.)':e.message)}}
+const NEWOPS=['tempAllow','dailyAllow','config','blocked','set','listAdd','listRemove','log'], IUOPS=['inuse','appLimit','siteStop'];
+async function ask(op,args){if(st&&((st.tmp===undefined&&NEWOPS.includes(op))||(st.iu===undefined&&IUOPS.includes(op))))throw new Error('The Surface still has the old KidGuard, so this button does nothing yet. It starts working once the Surface update is installed.');try{const r=await send(op,args);if(!r.ok)throw new Error(r.msg||'failed');return r}catch(e){throw new Error(/did not answer/.test(e.message)&&op!=='status'?OLD+' (Or the Surface is offline.)':e.message)}}
 async function loadAllBlocked(){
   const b=$('blkAll');b.disabled=true;$('blk').innerHTML='<div class="mu">Loading the full list...</div>';
   try{let off=0,total=1,all=[];while(off<total){const r=await ask('blocked',{offset:off});total=r.data.total;const it=[].concat(r.data.items||[]);all=all.concat(it);off+=40;if(!it.length)break}
@@ -233,6 +236,42 @@ function renderCfg(){
 }
 async function loadCfg(){const b=$('cfgLoad');b.disabled=true;try{CFG=(await ask('config')).data;renderCfg()}catch(e){toast(e.message)}finally{b.disabled=false}}
 async function change(op,args,done){try{await ask(op,args);toast(done);await loadCfg();refresh(true)}catch(e){toast(e.message)}}
+// ---- "In use today": what she used, with the parent's limits (JW 12 Nov 2026)
+let IU=null, iuTried=false;
+const MORE=[[5,'5 min'],[15,'15 min'],[30,'30 min'],[60,'1 hour']];
+function mins(m){m=+m||0;return m<60?m+' min':(m%60?Math.floor(m/60)+' h '+(m%60)+' min':(m/60)+' h')}
+function limTxt(x){const p=[];if(x.b)p.push('<span class="warn">blocked by you</span>');
+  if(x.d)p.push(x.m>=x.d?`<span class="warn">${mins(x.d)} a day - used up today</span>`:`${mins(x.d)} a day - ${mins(x.d-x.m)} left`);
+  if(x.u)p.push(`stops at <b>${esc(x.u)}</b>`);if(x.o)p.push(`open until <b>${esc(x.o)}</b>`);return p.join(' - ')}
+function iuRow(kind,x){
+  const now=x.now?'<span class="pill now">now</span>':'', lt=limTxt(x), dd=`data-d="${x.d||0}" data-u="${x.u?1:0}" data-b="${x.b?1:0}"`;
+  if(kind==='app'){const f=APPS[x.k]||APPS[String(x.l).toLowerCase()], name=f?f[0]:x.l;
+    return `<div class="bl"><div class="t"><div class="n">${esc(name)}${now}<span class="pill">app</span></div><div class="mu">${mins(x.m)} today${lt?' - '+lt:''}${String(name).toLowerCase()!==x.k?' ('+esc(x.k)+')':''}</div></div><div class="bb"><button data-lim="app" data-k="${esc(x.k)}" data-l="${esc(name)}" ${dd}>Limit</button></div></div>`}
+  const host=String(x.h).replace(/[^a-z0-9.-]/gi,'');
+  return `<div class="bl"><div class="t"><div class="n">${esc(x.t||host)}${now}<span class="pill">website</span></div><div class="mu"><a href="https://${esc(host)}" target="_blank" rel="noopener noreferrer">${esc(host)}</a> - ${mins(x.m)} today${lt?' - '+lt:''}</div></div><div class="bb"><button data-lim="site" data-k="${esc(host)}" data-l="${esc(x.t||host)}" ${dd}>Limit</button></div></div>`}
+function renderIU(){if(!IU)return;const a=[].concat(IU.apps||[]),w=[].concat(IU.sites||[]);
+  $('iu').innerHTML=(IU.paused?'<div class="warn">All rules are paused: limits start when you resume them.</div>':'')+(a.length?'<h3>Apps</h3>'+a.map(x=>iuRow('app',x)).join(''):'')+(w.length?'<h3>Websites</h3>'+w.map(x=>iuRow('site',x)).join(''):'')+(a.length||w.length?'':'<div class="mu">Nothing used yet today.</div>');
+  $('iuLoad').textContent='Refresh the list'}
+async function loadIU(quiet){const b=$('iuLoad');b.disabled=true;try{IU=(await ask('inuse')).data;renderIU()}catch(e){if(!quiet)toast(e.message)}finally{b.disabled=false}}
+function limPicker(b){
+  document.querySelectorAll('.tch').forEach(x=>x.remove());
+  const kind=b.dataset.lim,k=b.dataset.k,l=b.dataset.l,d=+b.dataset.d,u=b.dataset.u==='1',bl=b.dataset.b==='1',blocked=b.dataset.blk==='1',fz=kind==='app'?'frozen':'closed';
+  const hd=t=>`<div class="mu" style="flex:1 0 100%">${t}</div>`, bt=(how,m,t,c)=>`<button class="${c||''}" data-al="${how}" data-kind="${kind}" data-k="${esc(k)}" data-l="${esc(l)}" data-m="${m}">${t}</button>`;
+  let h='';
+  if(blocked)h+=hd(`Open ${esc(l)} now, once, for:`)+DUR.map(([m,t])=>bt('open',m,t)).join('');
+  h+=hd(`${blocked?'...or every day':esc(l)+': every day'}, this much use, then ${fz} till midnight:`)+DUR.map(([m,t])=>bt('day',m,t+' a day',blocked?'sec':'')).join('')+(d?bt('day',0,'Remove the daily limit','sec'):'');
+  if(!blocked){h+=hd(`...or today only: ${fz} after this much more:`)+MORE.map(([m,t])=>bt('now',m,t,'sec')).join('')+(u?bt('now',0,'Remove the stop','sec'):'');
+    h+=hd('')+(bl?bt('unblock',0,'Unblock','sec'):bt('block',0,'Block now','dng'))}
+  h+=`<button class="sec" data-tx="1" style="flex:1 0 100%">Cancel</button>`;
+  b.closest('.bl').insertAdjacentHTML('afterend',`<div class="row tch">${h}</div>`)}
+function setLimit(b){
+  const how=b.dataset.al,kind=b.dataset.kind,k=b.dataset.k,l=b.dataset.l,m=+b.dataset.m,fz=kind==='app'?'frozen (not closed)':'closed';
+  if(how==='block'&&!confirm(`Block ${l} now?`+(kind==='app'?' It is frozen, not closed: nothing she was doing is lost.':'')))return;
+  b.closest('.tch').remove();
+  const p=kind==='app'?ask('appLimit',{key:k,how,minutes:m}):how==='day'?ask('dailyAllow',{site:k,minutes:m}):how==='now'?ask('siteStop',{site:k,minutes:m}):how==='open'?ask('tempAllow',{site:k,minutes:m}):ask(how==='block'?'listAdd':'listRemove',{list:'blockSites',item:k});
+  const msg={day:m?`${l}: ${mins(m)} of use every day, then ${fz} till midnight`:`${l}: daily limit removed`,now:m?`${l}: ${fz} in ${mins(m)}, for the rest of today`:`${l}: stop removed`,
+    open:m?`${l} is open for ${mins(m)}, then blocked again`:`${l} blocked again`,block:`${l} is blocked`+(kind==='app'?' (frozen, not closed)':''),unblock:`${l} unblocked`}[how];
+  p.then(()=>{toast(msg);loadIU(true);refresh(true);if(showAll)loadAllBlocked()}).catch(x=>toast(x.message))}
 function ago(a){if(a<90)return 'just now';if(a<3600)return Math.round(a/60)+' min ago';if(a<86400)return Math.round(a/3600)+' h ago';return 'earlier'}
 
 document.addEventListener('click',e=>{
@@ -250,6 +289,9 @@ document.addEventListener('click',e=>{
     document.querySelectorAll('.tch').forEach(x=>x.remove());const at=b.dataset.tmp?b.closest('.bl'):$('tmpAdd');
     at.insertAdjacentHTML('afterend',`<div class="row tch"><div class="mu" style="flex:1 0 100%">Open ${esc(h)} now, once, for:</div>${DUR.map(([m,l])=>`<button data-ta="${esc(h)}" data-m="${m}">${l}</button>`).join('')}<div class="mu" style="flex:1 0 100%">...or every day, for this much use a day:</div>${DUR.map(([m,l])=>`<button class="sec" data-da="${esc(h)}" data-m="${m}">${l} a day</button>`).join('')}<button class="sec" data-tx="1" style="flex:1 0 100%">Cancel</button></div>`);return}
   if(b.dataset.tx){b.closest('.tch').remove();return}
+  if(b.id==='iuLoad'){loadIU(false);return}
+  if(b.dataset.lim){limPicker(b);return}
+  if(b.dataset.al){setLimit(b);return}
   if(b.dataset.ta){const h=b.dataset.ta,m=+b.dataset.m;b.closest('.tch').remove();ask('tempAllow',{site:h,minutes:m}).then(()=>{toast(`${h} is open for ${m<60?m+' min':m/60+' h'}, then blocked again`);$('tmpSite').value='';refresh(true);if(showAll)loadAllBlocked()}).catch(x=>toast(x.message));return}
   if(b.dataset.da){const h=b.dataset.da,m=+b.dataset.m;b.closest('.tch').remove();ask('dailyAllow',{site:h,minutes:m}).then(()=>{toast(`${h}: ${m<60?m+' min':m/60+' h'} of use every day, then closed till midnight`);$('tmpSite').value='';refresh(true);if(showAll)loadAllBlocked()}).catch(x=>toast(x.message));return}
   if(b.dataset.de){if(confirm(`Stop the daily time for ${b.dataset.de}? It goes back to the normal rules.`))ask('dailyAllow',{site:b.dataset.de,minutes:0}).then(()=>{toast('Daily time removed for '+b.dataset.de);refresh(true)}).catch(x=>toast(x.message));return}
