@@ -198,7 +198,7 @@ function blkRow(b){
   }
   const f=APPS[key]||APPS[String(b.l).toLowerCase()];
   const name=f?f[0]:b.l, kind=f?f[1]:'';
-  const note=kind==='tool'||b.w==='tool'?'Blocked on purpose - a system tool that cannot be approved':kind==='bg'?'A Windows background part - fine to leave blocked':esc(b.w);
+  const note=kind==='tool'||b.w==='tool'?'Blocked on purpose - a system tool that cannot be approved':kind==='bg'?'A Windows background part - fine to leave blocked':esc(b.w)+' - frozen, not closed: approving lets it carry on';
   const look=f?'':` - <a href="https://www.google.com/search?q=${encodeURIComponent('"'+b.l+'.exe" what is it')}" target="_blank" rel="noopener noreferrer">what is this?</a>`;
   const btn=(kind==='tool'||b.w==='tool')?'':`<button data-id="${esc(b.id)}" data-l="${esc(name)}">Approve</button>`;
   return `<div class="${cls}"><div class="t"><div class="n">${esc(name)}<span class="pill">app</span></div><div class="mu">${note} - ${ago(b.a)}${b.c>1?' - '+b.c+' times':''}${f?'':' ('+esc(b.l)+')'}${look}</div></div>${btn}</div>`;
