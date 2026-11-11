@@ -160,7 +160,7 @@ function render(){
   if(!showAll&&!$('blk').querySelector('.tch'))$('blk').innerHTML=blk.length?blk.map(blkRow).join(''):'<div class="mu">Nothing blocked.</div>';
   $('web').innerHTML='Mode: '+(s.net?'<span class="warn">INTERNET OFF</span>':(s.only?'approved sites only':'block list'))+(s.free?` - <b>all websites free until ${esc(s.free)}</b>`:'');
   if(s.tmp===undefined)$('web').innerHTML+='<div class="warn">The Surface is not updated yet: "Time limit", the full list, settings and activity start working after the update.</div>';
-  const tmp=[].concat(s.tmp||[]),day=[].concat(s.day||[]),lnk=h=>`<a href="https://${esc(h)}" target="_blank" rel="noopener noreferrer">${esc(h)}</a>`;
+  const tmp=[].concat(s.tmp||[]),day=[].concat(s.day||[]),lnk=h=>/^file:/.test(h)?esc(String(h).slice(5)):`<a href="https://${esc(h)}" target="_blank" rel="noopener noreferrer">${esc(h)}</a>`;
   $('tmp').innerHTML=tmp.map(t=>`<div class="li"><span>${lnk(t.h)} open until <b>${esc(t.u)}</b></span><button class="sec" data-te="${esc(t.h)}">End now</button></div>`).join('')
    +day.map(d=>`<div class="li"><span>${lnk(d.h)} ${d.m} min every day - ${d.u>=d.m?'<span class="warn">used up today</span>':`${d.u} min used today`}</span><button class="sec" data-de="${esc(d.h)}">Stop</button></div>`).join('');
   $('net').textContent=s.net?'Internet back ON':'Internet OFF';
@@ -196,8 +196,8 @@ const APPS={
 function blkRow(b){
   const key=String(b.id||'').replace(/^(app|site):/,''), cls='bl'+(b.a<120?' new':'');
   if(b.k==='site'){
-    const host=key.replace(/[^a-z0-9.-]/gi,'');
-    return `<div class="${cls}"><div class="t"><div class="n"><a href="https://${esc(host)}" target="_blank" rel="noopener noreferrer">${esc(host)}</a><span class="pill">website</span></div><div class="mu">${esc(b.w)} - ${ago(b.a)} - tap the name to see the site</div></div><div class="bb"><button data-id="${esc(b.id)}" data-l="${esc(host)}">Approve</button><button class="sec" data-tmp="${esc(host)}">Time limit</button></div></div>`;
+    const fl=/^file:/.test(key), host=fl?key:key.replace(/[^a-z0-9.-]/gi,'');
+    return `<div class="${cls}"><div class="t"><div class="n">${fl?esc(host.slice(5)):`<a href="https://${esc(host)}" target="_blank" rel="noopener noreferrer">${esc(host)}</a>`}<span class="pill">${fl?'file':'website'}</span></div><div class="mu">${esc(b.w)} - ${ago(b.a)} - ${fl?'a page saved on the Surface':'tap the name to see the site'}</div></div><div class="bb"><button data-id="${esc(b.id)}" data-l="${esc(host)}">Approve</button><button class="sec" data-tmp="${esc(host)}">Time limit</button></div></div>`;
   }
   const f=APPS[key]||APPS[String(b.l).toLowerCase()];
   const name=f?f[0]:b.l, kind=f?f[1]:'';
@@ -247,8 +247,8 @@ function iuRow(kind,x){
   const now=x.now?'<span class="pill now">now</span>':'', lt=limTxt(x), dd=`data-d="${x.d||0}" data-u="${x.u?1:0}" data-b="${x.b?1:0}"`;
   if(kind==='app'){const f=APPS[x.k]||APPS[String(x.l).toLowerCase()], name=f?f[0]:x.l;
     return `<div class="bl"><div class="t"><div class="n">${esc(name)}${now}<span class="pill">app</span></div><div class="mu">${mins(x.m)} today${lt?' - '+lt:''}${String(name).toLowerCase()!==x.k?' ('+esc(x.k)+')':''}</div></div><div class="bb"><button data-lim="app" data-k="${esc(x.k)}" data-l="${esc(name)}" ${dd}>Limit</button></div></div>`}
-  const host=String(x.h).replace(/[^a-z0-9.-]/gi,'');
-  return `<div class="bl"><div class="t"><div class="n">${esc(x.t||host)}${now}<span class="pill">website</span></div><div class="mu"><a href="https://${esc(host)}" target="_blank" rel="noopener noreferrer">${esc(host)}</a> - ${mins(x.m)} today${lt?' - '+lt:''}</div></div><div class="bb"><button data-lim="site" data-k="${esc(host)}" data-l="${esc(x.t||host)}" ${dd}>Limit</button></div></div>`}
+  const fl=/^file:/.test(x.h), host=fl?String(x.h):String(x.h).replace(/[^a-z0-9.-]/gi,''), where=fl?`file on the Surface: ${esc(host.slice(5))}`:`<a href="https://${esc(host)}" target="_blank" rel="noopener noreferrer">${esc(host)}</a>`;
+  return `<div class="bl"><div class="t"><div class="n">${esc(x.t||host)}${now}<span class="pill">${fl?'file':'website'}</span></div><div class="mu">${where} - ${mins(x.m)} today${lt?' - '+lt:''}</div></div><div class="bb"><button data-lim="site" data-k="${esc(host)}" data-l="${esc(x.t||host)}" ${dd}>Limit</button></div></div>`}
 function renderIU(){if(!IU)return;const a=[].concat(IU.apps||[]),w=[].concat(IU.sites||[]);
   $('iu').innerHTML=(IU.paused?'<div class="warn">All rules are paused: limits start when you resume them.</div>':'')+(a.length?'<h3>Apps</h3>'+a.map(x=>iuRow('app',x)).join(''):'')+(w.length?'<h3>Websites</h3>'+w.map(x=>iuRow('site',x)).join(''):'')+(a.length||w.length?'':'<div class="mu">Nothing used yet today.</div>');
   $('iuLoad').textContent='Refresh the list'}
