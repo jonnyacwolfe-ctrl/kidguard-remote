@@ -167,6 +167,7 @@ function render(){
   $('mode').textContent=s.only?'Switch to: every site except the blocked list':'Switch to: only approved sites';
   $('yt').textContent=`YouTube: ${fmt(s.yt)} of ${s.ytMin} m`+(s.ytOff?' - closed for today':'');
   $('pz').innerHTML=s.paused?'<span class="warn">ALL RULES ARE PAUSED</span>':'Rules are on.';
+  if(s.hdel)$('pz').innerHTML+=`<div class="warn">Browser history was deleted on the Surface (${esc(s.hdel)}). A copy from before is kept there.</div>`;
   $('pause').textContent=s.paused?'Resume all rules':'Pause all rules';
   const use=[].concat(s.use||[]);
   $('use').innerHTML=s.iu?'':(use.length?use.map(u=>`<tr><td>${esc(u.n)}</td><td>${fmt(u.s)}</td></tr>`).join(''):'<tr><td class="mu">No use yet today.</td></tr>');
